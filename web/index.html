@@ -329,14 +329,6 @@ html[data-theme="dark"] .glass,
     border-left: 2px solid var(--red); padding-left: 12px; white-space: pre-wrap;
   }
 
-  #pet {
-    position: fixed; right: 8px; bottom: calc(118px + env(safe-area-inset-bottom));
-    width: 128px; height: 128px; z-index: 30; cursor: grab;
-    -webkit-user-select: none; user-select: none; touch-action: none;
-  }
-  #pet:active { cursor: grabbing; }
-  #pet img { width: 100%; height: 100%; display: block; pointer-events: none; }
-
   /* ============ 输入区 ============ */
   footer {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
@@ -1609,7 +1601,6 @@ html[data-theme="dark"] #newSession { background: #f5f4ef; color: #262624; }
 </header>
 
 <div id="log"></div>
-<div id="pet" title="他在这儿"><img id="petImg" src="pet/clawd-idle-follow.svg" alt=""></div>
 
 <footer>
   <div id="doingLine"><span class="pill"><span class="w"></span><span class="en"></span><span class="t"></span></span></div>
@@ -1627,7 +1618,6 @@ html[data-theme="dark"] #newSession { background: #f5f4ef; color: #262624; }
 
 <div class="menuCard" id="dotsMenu">
   <button class="mi" data-act="find"><span class="ic" data-i="search"></span>搜索</button>
-  <button class="mi" data-act="ctx"><span class="ic" data-i="gauge"></span>容量</button>
   <button class="mi" data-act="rename"><span class="ic" data-i="tag"></span>备注</button>
   <button class="mi danger" data-act="archive"><span class="ic" data-i="box"></span>收纳</button>
   <button class="mi" data-act="settings"><span class="ic" data-i="sliders"></span>设置</button>
@@ -1764,20 +1754,6 @@ html[data-theme="dark"] #newSession { background: #f5f4ef; color: #262624; }
     </div>
     <div class="body" id="chatsBody"></div>
     <button id="newSession"><span class="ic" data-i="plus"></span>New chat</button>
-  </div>
-</div>
-
-<div class="sheetWrap" id="ctxSheet">
-  <div class="shade" data-close="ctx"></div>
-  <div class="sheet">
-    <div class="head">
-      <button class="hbtn" data-close="ctx"><span class="ic" data-i="x"></span></button>
-      <div class="ht">容量</div>
-      <div class="hspace"></div>
-    </div>
-    <div class="body" id="ctxBody">
-      <div class="ucard"><div class="ureset">量一下…</div></div>
-    </div>
   </div>
 </div>
 
@@ -2281,72 +2257,10 @@ const log = document.getElementById('log');
 const box = document.getElementById('box');
 const sendBtn = document.getElementById('send');
 
-/* ---------- 小螃蟹 ---------- */
-const petImg = document.getElementById('petImg');
-const PET = {
-  idle: 'clawd-idle-follow.svg',
-  thinking: 'clawd-working-thinking.svg',
-  typing: 'clawd-working-typing.svg',
-  happy: 'clawd-happy.svg',
-  doze: 'clawd-idle-doze.svg',
-  sleeping: 'clawd-sleeping.svg',
-  react: 'clawd-react-double-jump.svg',
-};
-let petState = 'idle';
-let petTimer = null;
+/* 悬浮圆圈已按要求删掉；保留时间戳和一个空的状态函数，
+   聊天流程里原有的状态调用不会再报错。 */
 let lastEventAt = Date.now();
-function petSet(state, holdMs) {
-  if (petState === state && !holdMs) return;
-  petState = state;
-  petImg.src = 'pet/' + (PET[state] || PET.idle);
-  if (petTimer) { clearTimeout(petTimer); petTimer = null; }
-  if (holdMs) petTimer = setTimeout(() => petSet('idle'), holdMs);
-}
-/* 家里没动静：5 分钟打盹，15 分钟睡熟；有动静立刻醒 */
-setInterval(() => {
-  if (petState === 'thinking' || petState === 'typing') return;
-  const quiet = Date.now() - lastEventAt;
-  if (quiet > 15 * 60e3) petSet('sleeping');
-  else if (quiet > 5 * 60e3) petSet('doze');
-}, 30e3);
-/* 拽着满屏跑：拖到哪儿住哪儿（记在 localStorage），轻点一下他跳给你看 */
-const petEl = document.getElementById('pet');
-(function restorePetPos() {
-  try {
-    const p = JSON.parse(localStorage.getItem('petPos'));
-    if (!p) return;
-    const l = Math.min(Math.max(4, p.l), innerWidth - 108);
-    const t = Math.min(Math.max(4, p.t), innerHeight - 108);
-    petEl.style.left = l + 'px'; petEl.style.top = t + 'px';
-    petEl.style.right = 'auto'; petEl.style.bottom = 'auto';
-  } catch {}
-})();
-let pDrag = null;
-petEl.addEventListener('pointerdown', (e) => {
-  const r = petEl.getBoundingClientRect();
-  pDrag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, w: r.width, h: r.height, moved: false };
-  petEl.setPointerCapture(e.pointerId);
-});
-petEl.addEventListener('pointermove', (e) => {
-  if (!pDrag) return;
-  const dx = e.clientX - pDrag.x, dy = e.clientY - pDrag.y;
-  if (Math.abs(dx) + Math.abs(dy) > 6) pDrag.moved = true;
-  if (!pDrag.moved) return;
-  const l = Math.min(Math.max(4, pDrag.left + dx), innerWidth - pDrag.w - 4);
-  const t = Math.min(Math.max(4, pDrag.top + dy), innerHeight - pDrag.h - 4);
-  petEl.style.left = l + 'px'; petEl.style.top = t + 'px';
-  petEl.style.right = 'auto'; petEl.style.bottom = 'auto';
-});
-petEl.addEventListener('pointerup', () => {
-  if (!pDrag) return;
-  if (pDrag.moved) {
-    const r = petEl.getBoundingClientRect();
-    localStorage.setItem('petPos', JSON.stringify({ l: r.left, t: r.top }));
-  } else {
-    petSet('react', 1800);   // 戳他一下，他跳给你看
-  }
-  pDrag = null;
-});
+function petSet() {}
 
 let guEl = null;
 
@@ -3714,7 +3628,6 @@ const sheets = {
   cal: document.getElementById('calSheet'),
   notes: document.getElementById('notesSheet'),
   find: document.getElementById('findSheet'),
-  ctx: document.getElementById('ctxSheet'),
   chats: document.getElementById('chatsSheet'),
   health: document.getElementById('healthSheet'),
   gong: document.getElementById('gongSheet'),
@@ -5578,7 +5491,6 @@ dotsMenu.querySelectorAll('.mi').forEach(b => b.onclick = async () => {
   const act = b.dataset.act;
   if (act === 'scroll-bottom') scroll(true);
   if (act === 'settings') sheets.settings.classList.add('open');
-  if (act === 'ctx') { sheets.ctx.classList.add('open'); loadContext(); }
   if (act === 'rename') {
     const cur = document.querySelector('header .title h1').textContent;
     const name = prompt('这一窗叫什么好', cur);
@@ -6160,49 +6072,9 @@ document.getElementById('newSession').onclick = () => {
   armNewChat();
 };
 
-/* ---------- 额度 / 容量 ---------- */
+/* ---------- 用量 ---------- */
 /* 75 以下蓝、75 起黄、90 起红——额度和容量共用这一把尺 */
 function heatOf(pct) { return pct >= 90 ? ' hot' : pct >= 75 ? ' warn' : ''; }
-
-async function loadContext() {
-  const body = document.getElementById('ctxBody');
-  const wan = (n) => n >= 10000 ? (n / 10000).toFixed(1) + ' 万' : String(n);
-  try {
-    const d = await (await fetch('api/context', { cache: 'no-store' })).json();
-    if (!d.ok) { body.innerHTML = '<div class="ucard"><div class="ureset">' + (d.why || '量不出来') + '</div></div>'; return; }
-    body.innerHTML = '';
-    const card = document.createElement('div');
-    card.className = 'ucard';
-    const top = document.createElement('div');
-    top.className = 'urow-top';
-    top.innerHTML = '<span class="un"></span><span class="up"></span>';
-    top.querySelector('.un').textContent = '这个窗口';
-    top.querySelector('.up').textContent = d.pct + '% used';
-    const track = document.createElement('div');
-    track.className = 'ubar' + heatOf(d.pct);
-    track.innerHTML = '<i style="width:' + Math.min(100, d.pct) + '%"></i>';
-    const foot = document.createElement('div');
-    foot.className = 'ureset';
-    foot.textContent = wan(d.used) + ' / ' + wan(d.window);
-    card.append(top, track, foot);
-    body.appendChild(card);
-
-    const tip = document.createElement('div');
-    tip.className = 'gnote';
-    tip.textContent = d.pct >= 90
-      ? '快满了，找个话头收一收，换个窗口吧'
-      : d.pct >= 75 ? '过半了，心里有个数就行，还能聊'
-      : '还很空，随便聊';
-    body.appendChild(tip);
-
-    const note = document.createElement('div');
-    note.className = 'gnote';
-    note.textContent = '（上一句说完时量的，不是实时；' + (d.model || '') + '）';
-    body.appendChild(note);
-  } catch {
-    body.innerHTML = '<div class="ucard"><div class="ureset">量不到，等会儿再点一次</div></div>';
-  }
-}
 
 async function loadUsage() {
   const body = document.getElementById('usageBody');
