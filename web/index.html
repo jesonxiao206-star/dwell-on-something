@@ -3266,54 +3266,6 @@ function renderStrip() {
 }
 
 let guBusy = false;
-const DOING = [
-  ["办着呢","Accomplishing"], ["动手了","Actioning"], ["落地中","Actualizing"], ["搭骨架","Architecting"],
-  ["烤着","Baking"], ["发着光","Beaming"], ["迷糊着","Befuddling"], ["翻涌","Billowing"],
-  ["焯水","Blanching"], ["唠叨中","Bloviating"], ["蹦迪","Boogieing"], ["瞎忙活","Boondoggling"],
-  ["戳一下","Booping"], ["起底子","Bootstrapping"], ["煮着","Brewing"], ["揉面团","Bunning"],
-  ["打洞","Burrowing"], ["算着","Calculating"], ["黏黏糊糊","Canoodling"], ["熬焦糖","Caramelizing"],
-  ["层层落下","Cascading"], ["弹射","Catapulting"], ["动脑子","Cerebrating"], ["引流","Channeling"],
-  ["引流","Channelling"], ["编舞","Choreographing"], ["搅着","Churning"], ["克劳德中","Clauding"],
-  ["凝在一起","Coalescing"], ["思量","Cogitating"], ["捋顺","Combobulating"], ["谱着","Composing"],
-  ["计算中","Computing"], ["调配","Concocting"], ["斟酌","Considering"], ["端详","Contemplating"],
-  ["下厨","Cooking"], ["打磨","Crafting"], ["创作中","Creating"], ["嚼数","Crunching"],
-  ["结晶","Crystallizing"], ["培育","Cultivating"], ["破译","Deciphering"], ["掂量","Deliberating"],
-  ["拿主意","Determining"], ["磨磨蹭蹭","Dilly-dallying"], ["干着","Doing"], ["涂鸦","Doodling"],
-  ["淋汁","Drizzling"], ["退潮","Ebbing"], ["促成","Effecting"], ["说明白","Elucidating"],
-  ["添花","Embellishing"], ["施法","Enchanting"], ["构想","Envisioning"], ["发酵中","Fermenting"],
-  ["瞎捣鼓","Fiddle-faddling"], ["连蒙带骗","Finagling"], ["火燎一下","Flambing"], ["叽叽喳喳","Flibbertigibbeting"],
-  ["流着","Flowing"], ["懵着","Flummoxing"], ["扑棱","Fluttering"], ["锻着","Forging"],
-  ["成形","Forming"], ["撒欢","Frolicking"], ["抹奶油","Frosting"], ["瞎逛","Gallivanting"],
-  ["撒开蹄子","Galloping"], ["摆盘","Garnishing"], ["生成中","Generating"], ["比划","Gesticulating"],
-  ["发芽","Germinating"], ["上git","Gitifying"], ["摇起来","Grooving"], ["起风","Gusting"],
-  ["调和","Harmonizing"], ["捋一遍","Hashing"], ["孵着","Hatching"], ["赶羊","Herding"],
-  ["按喇叭","Honking"], ["闹哄哄","Hullaballooing"], ["跃迁","Hyperspacing"], ["冒点子","Ideating"],
-  ["想象中","Imagining"], ["即兴","Improvising"], ["孵化中","Incubating"], ["推断","Inferring"],
-  ["泡着","Infusing"], ["电离","Ionizing"], ["跳吉特巴","Jitterbugging"], ["切丝","Julienning"],
-  ["揉面","Kneading"], ["发面","Leavening"], ["悬着","Levitating"], ["磨洋工","Lollygagging"],
-  ["显形","Manifesting"], ["腌着","Marinating"], ["兜圈子","Meandering"], ["蜕变","Metamorphosing"],
-  ["起雾","Misting"], ["太空步","Moonwalking"], ["溜达","Moseying"], ["琢磨","Mulling"],
-  ["集结","Mustering"], ["出神","Musing"], ["化成星云","Nebulizing"], ["筑巢","Nesting"],
-  ["看报","Newspapering"], ["瞎弹","Noodling"], ["结核","Nucleating"], ["绕圈","Orbiting"],
-  ["编排","Orchestrating"], ["渗着","Osmosing"], ["闲步","Perambulating"], ["咕嘟着","Percolating"],
-  ["细读","Perusing"], ["论道","Philosophising"], ["光合作用","Photosynthesizing"], ["授粉","Pollinating"],
-  ["沉思","Pondering"], ["高谈阔论","Pontificating"], ["扑上去","Pouncing"], ["沉淀","Precipitating"],
-  ["处理中","Processing"], ["醒面","Proofing"], ["扦插","Propagating"], ["瞎忙","Puttering"],
-  ["犯难","Puzzling"], ["量子化","Quantumizing"], ["花里胡哨","Razzle-dazzling"], ["敲锣打鼓","Razzmatazzing"],
-  ["重新捋顺","Recombobulating"], ["织网","Reticulating"], ["归巢","Roosting"], ["反刍","Ruminating"],
-  ["颠勺","Sauting"], ["蹦跶","Scampering"], ["扛着","Schlepping"], ["窜着","Scurrying"],
-  ["调味","Seasoning"], ["搞鬼","Shenaniganing"], ["扭腰","Shimmying"], ["小火炖","Simmering"],
-  ["撒腿就跑","Skedaddling"], ["打草稿","Sketching"], ["溜着","Slithering"], ["揉扁","Smooshing"],
-  ["踩着袜子跳","Sock-hopping"], ["钻洞","Spelunking"], ["转圈","Spinning"], ["冒芽","Sprouting"],
-  ["焖着","Stewing"], ["升华","Sublimating"], ["打旋","Swirling"], ["俯冲","Swooping"],
-  ["共生中","Symbioting"], ["合成","Synthesizing"], ["调温","Tempering"], ["想着","Thinking"],
-  ["打雷","Thundering"], ["捣鼓","Tinkering"], ["犯傻","Tomfoolering"], ["底朝天","Topsy-turvying"],
-  ["变形","Transfiguring"], ["点石成金","Transmuting"], ["拧着","Twisting"], ["起伏","Undulating"],
-  ["舒展开","Unfurling"], ["拆线头","Unravelling"], ["上头","Vibing"], ["摇摇摆摆","Waddling"],
-  ["游荡","Wandering"], ["扭曲","Warping"], ["捣鼓那个啥","Whatchamacalliting"], ["卷成漩涡","Whirlpooling"],
-  ["嗡嗡转","Whirring"], ["打蛋","Whisking"], ["晃悠","Wibbling"], ["干活","Working"],
-  ["摆弄","Wrangling"], ["刮皮","Zesting"], ["走之字","Zigzagging"]
-];
 let doingTimer = null, doingAt = 0;
 
 const TOOL_ZH = {
@@ -3358,7 +3310,7 @@ function doingShow(el, zh, en) {
 }
 
 let doingWord = null;
-function doingRoll() { doingWord = DOING[Math.floor(Math.random() * DOING.length)]; }
+function doingRoll() { doingWord = ['等我回话', '']; }
 
 function doingPick(el) {
   /* 真事优先：进行中那条待办 > 手上这个工具 > 随机词 */
