@@ -459,6 +459,28 @@ async function handleApi(req, res, url) {
     return sendJSON(res, 200, payload);
   }
 
+  /* ---- 她本人回话的入口（仅限本机回环调用，外部网络一律拒绝）：
+         把一句回复同时写进聊天历史（kind:'her'）与 poll 事件流，
+         网页那边轮询到就会显示出来。 ---- */
+  if (name === 'her-say' && method === 'POST') {
+    const ra = (req.socket && req.socket.remoteAddress) || '';
+    if (!/^(127\.0\.0\.1|::1|::ffff:127\.0\.0\.1)$/.test(ra)) {
+      return sendJSON(res, 403, { ok: false, error: 'local only' });
+    }
+    const b = await readJSONBody(req);
+    const text = typeof b.text === 'string' ? b.text.trim() : '';
+    if (!text) return sendJSON(res, 400, { ok: false, error: 'empty' });
+    const chat = loadJSON('chat.json', { msgs: [], upto: 0, more: false });
+    const seq = (chat.upto || 0) + 1;
+    chat.msgs.push({ seq, kind: 'her', text });
+    chat.upto = seq;
+    saveJSON('chat.json', chat);
+    const evt = { type: 'assistant', message: { content: [{ type: 'text', text }] } };
+    fs.appendFileSync(OUTBOX, JSON.stringify(evt) + '\n');
+    log(`她回话 seq=${seq}：${text.slice(0, 60)}`);
+    return sendJSON(res, 200, { ok: true, seq });
+  }
+
   /* ---- 状态 / 模型 ---- */
   if (name === 'status' && method === 'GET') {
     return sendJSON(res, 200, { alive: true, since: START_SEC, busy: false, armed: false });
@@ -519,8 +541,11 @@ const server = http.createServer(async (req, res) => {
       return res.end(gatePage(next, true));
     }
 
-    /* 全站口令门（含 / 与全部 api） */
-    if (!isAuthed(req)) {
+    /* 全站口令门（含 / 与全部 api）；唯一例外：her-say 只认本机回环，不认口令 */
+    const _ra = (req.socket && req.socket.remoteAddress) || '';
+    const isLocalHerSay = url.pathname === '/api/her-say' && req.method === 'POST' &&
+      /^(127\.0\.0\.1|::1|::ffff:127\.0\.0\.1)$/.test(_ra);
+    if (!isAuthed(req) && !isLocalHerSay) {
       if (url.pathname.startsWith('/api/')) return sendJSON(res, 401, { ok: false, error: 'auth' });
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       return res.end(gatePage(url.pathname + url.search, false));
