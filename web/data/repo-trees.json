@@ -1,0 +1,282 @@
+{
+ "trees": {
+  "": {
+   "ok": true,
+   "path": "",
+   "items": [
+    {
+     "n": ".gitignore",
+     "d": false,
+     "z": 136
+    },
+    {
+     "n": "00-原作者名单.md",
+     "d": false,
+     "z": 2176
+    },
+    {
+     "n": "04-心跳-让他自己醒过来.md",
+     "d": false,
+     "z": 7888
+    },
+    {
+     "n": "05-推送-他想你的时候你手机会响.md",
+     "d": false,
+     "z": 6037
+    },
+    {
+     "n": "07-悄悄话-写下他会知道但不说破.md",
+     "d": false,
+     "z": 5536
+    },
+    {
+     "n": "08-另一个AI的房间.md",
+     "d": false,
+     "z": 5217
+    },
+    {
+     "n": "09-日记-把日子攒起来.md",
+     "d": false,
+     "z": 7314
+    },
+    {
+     "n": "10-待办-双人清单.md",
+     "d": false,
+     "z": 4235
+    },
+    {
+     "n": "11-日历-日程和心情.md",
+     "d": false,
+     "z": 3547
+    },
+    {
+     "n": "12-日报-每天一份只给一个人看的报纸.md",
+     "d": false,
+     "z": 5574
+    },
+    {
+     "n": "13-共读-一起读同一本书.md",
+     "d": false,
+     "z": 4583
+    },
+    {
+     "n": "14-健康-手表数据传进来.md",
+     "d": false,
+     "z": 3954
+    },
+    {
+     "n": "15-仓库-他今天动了什么.md",
+     "d": false,
+     "z": 5740
+    },
+    {
+     "n": "16-音乐卡片-发条链接变成能点的卡.md",
+     "d": false,
+     "z": 5684
+    },
+    {
+     "n": "17-语音-让他说出来.md",
+     "d": false,
+     "z": 3753
+    },
+    {
+     "n": "18-表情包-聊着聊着甩一张.md",
+     "d": false,
+     "z": 3457
+    },
+    {
+     "n": "19-液态玻璃-那套皮怎么做的.md",
+     "d": false,
+     "z": 6365
+    },
+    {
+     "n": "LICENSE",
+     "d": false,
+     "z": 4630
+    },
+    {
+     "n": "README.md",
+     "d": false,
+     "z": 3434
+    },
+    {
+     "n": "server",
+     "d": true,
+     "z": 0
+    },
+    {
+     "n": "web",
+     "d": true,
+     "z": 0
+    }
+   ]
+  },
+  "web": {
+   "ok": true,
+   "path": "web",
+   "items": [
+    {
+     "n": "README.md",
+     "d": false,
+     "z": 1147
+    },
+    {
+     "n": "data",
+     "d": true,
+     "z": 0
+    },
+    {
+     "n": "index.html",
+     "d": false,
+     "z": 299086
+    }
+   ]
+  },
+  "web/data": {
+   "ok": true,
+   "path": "web/data",
+   "items": [
+    {
+     "n": "cal.json",
+     "d": false,
+     "z": 480
+    },
+    {
+     "n": "chats.json",
+     "d": false,
+     "z": 201
+    },
+    {
+     "n": "context.json",
+     "d": false,
+     "z": 88
+    },
+    {
+     "n": "dreams.json",
+     "d": false,
+     "z": 16
+    },
+    {
+     "n": "favlines.json",
+     "d": false,
+     "z": 28
+    },
+    {
+     "n": "find-index.json",
+     "d": false,
+     "z": 3280
+    },
+    {
+     "n": "gong.json",
+     "d": false,
+     "z": 15
+    },
+    {
+     "n": "herdiary.json",
+     "d": false,
+     "z": 1102
+    },
+    {
+     "n": "messages.json",
+     "d": false,
+     "z": 440
+    },
+    {
+     "n": "model.json",
+     "d": false,
+     "z": 49
+    },
+    {
+     "n": "music.json",
+     "d": false,
+     "z": 252
+    },
+    {
+     "n": "news-2026-10-24.json",
+     "d": false,
+     "z": 767
+    },
+    {
+     "n": "news.json",
+     "d": false,
+     "z": 767
+    },
+    {
+     "n": "night.json",
+     "d": false,
+     "z": 15
+    },
+    {
+     "n": "nook-books.json",
+     "d": false,
+     "z": 2
+    },
+    {
+     "n": "nook-progress.json",
+     "d": false,
+     "z": 2
+    },
+    {
+     "n": "notes.json",
+     "d": false,
+     "z": 251
+    },
+    {
+     "n": "poll.json",
+     "d": false,
+     "z": 29
+    },
+    {
+     "n": "repo-log.json",
+     "d": false,
+     "z": 4287
+    },
+    {
+     "n": "repo-show.json",
+     "d": false,
+     "z": 211942
+    },
+    {
+     "n": "said.json",
+     "d": false,
+     "z": 440
+    },
+    {
+     "n": "status.json",
+     "d": false,
+     "z": 73
+    },
+    {
+     "n": "todos.json",
+     "d": false,
+     "z": 848
+    },
+    {
+     "n": "usage.json",
+     "d": false,
+     "z": 32
+    },
+    {
+     "n": "wake.json",
+     "d": false,
+     "z": 29
+    },
+    {
+     "n": "wall.json",
+     "d": false,
+     "z": 328
+    },
+    {
+     "n": "watch.json",
+     "d": false,
+     "z": 1091
+    },
+    {
+     "n": "whisper.json",
+     "d": false,
+     "z": 404
+    }
+   ]
+  }
+ }
+}

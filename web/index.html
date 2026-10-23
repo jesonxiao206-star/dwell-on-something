@@ -1981,82 +1981,216 @@ html[data-theme="dark"] #newSession { background: #f5f4ef; color: #262624; }
 
 <script>
 /* ─────────────────────────────────────────────────────────────
-   演示模式。这份界面原本每一块内容都来自后端；为了让它单独
-   打开也能看，下面把 fetch 拦下来喂一份写死的演示数据。
-   数据一律写死，不用 Math.random——随机数会让每次截图都不一样。
-   接自己的后端时把这一整块删掉即可，其余代码不用动。
+   静态真数据版（方案 A）。这一整块站在原「演示模式」拦截层的
+   位置上：界面本体的每一块内容原本都来自后端，这里把 fetch
+   拦下来，改喂同目录 data/*.json 里的真数据（离线生成、随仓
+   库一起发布）。数据形状与真后端同构，将来接真后端时把这一
+   整块删掉即可，其余代码不用动。
+   写操作（POST）的静态版口径：能在本机模拟的（纸条 / 清单 /
+   日历 / 日记 / 悄悄话 / 窗口 / 心跳开关）改内存里的数据并存
+   一份 localStorage 覆盖层——只留在这台设备上，不回传、不跨
+   设备；真动作类（发消息 / 另一个 AI 的房间 / 上传文件）直
+   接失败，让界面自己报「没送出去」，不假装成功。
    ───────────────────────────────────────────────────────────── */
 (function () {
-  const T = 1786000000;
-  const said = [
-    { seq: 1, kind: 'her',  text: '帮我看看这个函数为什么每次都返回 undefined' },
-    { seq: 2, kind: 'think', text: '先看调用点。变量在 try 块里声明，出了 try 就取不到了——块级作用域。' },
-    { seq: 3, kind: 'tool', name: 'Read', input: { file_path: 'src/app.js' } },
-    { seq: 4, kind: 'tool_result', id: 3, content: '读了 120 行' },
-    { seq: 5, kind: 'gu', text: '找到了。`const` 是块级的，出了 `try` 那个变量根本不存在：\n\n```js\nlet out = null;\ntry {\n  const data = await fetch(url).then(r => r.json());\n  out = data.value;          // 要在这儿接出来\n} catch (e) {}\nreturn out;                  // 而不是在这儿读 data\n```\n\n语法检查不会报错，只有真跑一次才会抛 ReferenceError。' },
-    { seq: 6, kind: 'her', text: '懂了。顺便推首歌' },
-    { seq: 7, kind: 'gu', text: '这首：\n\nhttps://music.163.com/song?id=441491828' },
-  ];
-  const D = {
-    'api/said':        { msgs: said, upto: 7 },
-    'api/model':       { name: 'claude-opus-4-6', effort: 'high' },
-    'api/context':     { used: 42000, max: 200000 },
-    'api/usage':       { ok: true, items: [] },
-    'api/chats':       { items: [] },
-    'api/repo/log':    { ok: true, total: 3, skip: 0, items: [
-      { h: '3357e4f', t: T - 1200,  s: '走势线：标题即结论、线头有点、能按住拖着看某一刻', b: '', f: [{ s: 'M', p: 'src/app.js' }] },
-      { h: '008714b', t: T - 5400,  s: '采样从 9 分钟改到 3 分钟，空态说清楚还差什么',       b: '', f: [{ s: 'M', p: 'src/app.js' }, { s: 'A', p: 'src/trend.js' }] },
-      { h: 'd7f3095', t: T - 90000, s: '历史留痕：append-only 的 jsonl，留 48 小时',        b: '', f: [{ s: 'M', p: 'server.py' }] } ] },
-    'api/repo/tree':   { ok: true, path: '', items: [
-      { n: 'src', d: true, z: 0 }, { n: 'tools', d: true, z: 0 },
-      { n: 'README.md', d: false, z: 2048 }, { n: 'server.py', d: false, z: 51200 } ] },
-    'api/repo/file':   { ok: true, path: 'README.md', size: 2048,
-      text: '# 演示仓库\n\n这一页读的是本机的 git 仓库：\n\n- 时间线：每条提交几点、动了哪几个文件，点开就地展开 diff\n- 文件：面包屑一层层点进去，点文件看内容\n' },
-    'api/music':       { ok: true, id: '441491828', name: '演示曲目', artist: '演示歌手',
-                         album: '演示专辑', pic: '', sec: 239 },
-    'api/todos':       { ok: true, mine: [
-      { id: 1, text: '把静态检查接进部署流程', done: false, at: '09:00' },
-      { id: 2, text: '写 README', done: false, at: '' },
-      { id: 3, text: '修那个流式渲染的坑', done: true, at: '' } ], yours: [] },
-    'api/whisper':     { items: [
-      { who: 'her', text: '今天这个改得挺好看的', at: 1786000000 },
-      { who: 'gu',  text: '记下了。下次照这个方向走。', at: 1786001200 },
-    ] },
-    'api/dreams':      { items: [] },
-    'api/night':       { days: [
-      { date: '2026-03-14', items: [
-        { t: '01:20', text: '把明天要做的三件事排了一下顺序：\n先修那个作用域的坑，再补检查脚本，最后才是好看。' },
-        { t: '04:50', text: '复盘今天——同一个错犯了两次，都是"新东西动了别人的地盘"。' } ] },
-      { date: '2026-03-13', items: [
-        { t: '02:05', text: '夜里没什么事。把日志翻了一遍，没有异常。' } ] },
-    ] },
-    'api/favlines':    { ok: true, text: '# 摘下来的话\n\n---\n\n**2026-03-14**\n> "把它做成能一眼看懂的样子，比做成能显摆的样子难得多。"\n\n这句话后来变成了这个界面的准则：一屏只讲一件事。\n\n---\n\n**2026-03-09**\n> "语法检查全绿，不代表它能跑。"\n\n那天之后加了两道静态检查。\n' },
-    'api/herdiary':    { items: [] },
-    'api/wall':        { ok: true, bricks: [
-      { date: '2026-03-14', title: '把状态条改成明度即数据', kw: '灰阶、动效、可读性',
-        text: '七根条不再靠颜色区分高低，改成六级灰——越黑越高。扫一眼就知道哪项顶到头了，不用读数字。' },
-      { date: '2026-03-14', title: '一套零件盖全家', kw: '设计系统、复用',
-        text: '同一种东西不该有两套长相。新页面挂上已有的类，不另起炉灶。' },
-      { date: '2026-03-12', title: '流式渲染踩的坑', kw: '流式、正则、卡片',
-        text: '链接写到一半就被正则匹配上，会当场渲染出一张指错的卡片。所以流式时把没写完的结尾藏住，定稿再变。' },
-      { date: '2026-03-09', title: '语法检查查不出的错', kw: '作用域、静态检查',
-        text: 'try 块里 const，块外引用——语法全绿，运行时抛 ReferenceError。加了一道 AST 检查专抓这个。' },
-    ] },
-    'api/notes':       { gu: [], her: [] },
-    'api/cal':         { ok: true, events: [], period: null },
-    'api/news':        { ok: false },
-    'api/nook':        { ok: false },
-    'api/health':      { ok: false },
-    'api/gong':        { msgs: [] },
-  };
+  const real = window.fetch.bind(window);
   const R = (o) => new Response(JSON.stringify(o), { headers: { 'Content-Type': 'application/json' } });
-  const real = window.fetch;
-  window.fetch = function (input) {
-    const u = String(typeof input === 'string' ? input : (input && input.url) || '');
-    if (u.includes('api/events')) return new Promise(() => {});   // 长轮询：演示里挂着
+  const D = {};                 // 接口键 → 数据（与原数据表同名同构）
+  const NEWS = {};              // 日期 → 那一天的日报
+  let REPO_LOG = [], TREES = {}, FILES = {}, SHOWS = {}, FIND = [];
+  let readyResolve;
+  const ready = new Promise(r => { readyResolve = r; });
+
+  /* ---------- 数据装载：先占位排队，拉齐了再放行 ---------- */
+  const FILES_MAP = [
+    ['data/said.json', 'api/said'], ['data/messages.json', 'api/messages'],
+    ['data/model.json', 'api/model'], ['data/context.json', 'api/context'],
+    ['data/usage.json', 'api/usage'], ['data/chats.json', 'api/chats'],
+    ['data/music.json', 'api/music'], ['data/todos.json', 'api/todos'],
+    ['data/whisper.json', 'api/whisper'], ['data/dreams.json', 'api/dreams'],
+    ['data/night.json', 'api/night'], ['data/favlines.json', 'api/favlines'],
+    ['data/herdiary.json', 'api/herdiary'], ['data/wall.json', 'api/wall'],
+    ['data/notes.json', 'api/notes'], ['data/cal.json', 'api/cal'],
+    ['data/news.json', 'api/news'], ['data/gong.json', 'api/gong'],
+    ['data/watch.json', 'api/watch'], ['data/status.json', 'api/status'],
+    ['data/wake.json', 'api/wake'], ['data/poll.json', 'api/poll'],
+    ['data/nook-books.json', 'api/nook/books'], ['data/nook-progress.json', 'api/nook/progress'],
+  ];
+  const loads = FILES_MAP.map(([f, k]) =>
+    real(f).then(r => r.json()).then(j => { D[k] = j; }).catch(() => {}));
+  loads.push(real('data/news-2026-10-24.json').then(r => r.json()).then(j => { NEWS['2026-10-24'] = j; }).catch(() => {}));
+  loads.push(real('data/repo-log.json').then(r => r.json()).then(j => { REPO_LOG = j.items || []; }).catch(() => {}));
+  loads.push(real('data/repo-trees.json').then(r => r.json()).then(j => { TREES = j.trees || {}; }).catch(() => {}));
+  loads.push(real('data/repo-files.json').then(r => r.json()).then(j => { FILES = j.files || {}; }).catch(() => {}));
+  loads.push(real('data/repo-show.json').then(r => r.json()).then(j => { SHOWS = j.shows || {}; }).catch(() => {}));
+  loads.push(real('data/find-index.json').then(r => r.json()).then(j => { FIND = j.entries || []; }).catch(() => {}));
+
+  /* 本地覆盖层：POST 在本机改过的数据，刷新后盖回文件内容之上 */
+  const OVERLAY_KEYS = ['api/notes', 'api/todos', 'api/cal', 'api/herdiary', 'api/whisper', 'api/chats'];
+  function applyOverlays() {
+    OVERLAY_KEYS.forEach(k => {
+      try {
+        const raw = localStorage.getItem('dwell.' + k);
+        if (raw) D[k] = JSON.parse(raw);
+      } catch (e) {}
+    });
+  }
+  function saveOverlay(k) {
+    try { localStorage.setItem('dwell.' + k, JSON.stringify(D[k])); } catch (e) {}
+  }
+  Promise.allSettled(loads).then(() => { applyOverlays(); readyResolve(); });
+
+  /* ---------- 小工具 ---------- */
+  function strParam(u, name, def) {
+    const m = String(u).match(new RegExp('[?&]' + name + '=([^&]*)'));
+    return m ? m[1] : def;
+  }
+  function intParam(u, name, def) {
+    const v = parseInt(strParam(u, name, ''), 10);
+    return isNaN(v) ? def : v;
+  }
+  function dec(s) { try { return decodeURIComponent(s); } catch (e) { return s; } }
+  const nowSec = () => Math.floor(Date.now() / 1000);
+  const nextId = (list) => (list || []).reduce((m, x) => Math.max(m, x.id || 0), 0) + 1;
+
+  function findHits(q) {
+    if (!q) return { ok: true, hits: [] };
+    const hits = [];
+    FIND.forEach(e => {
+      const i = (e.text || '').indexOf(q);
+      if (i < 0) return;
+      const s = Math.max(0, i - 30);
+      hits.push({ kind: e.kind, date: e.date,
+        snippet: (s > 0 ? '…' : '') + e.text.slice(s, i + q.length + 50) });
+    });
+    return { ok: true, hits };
+  }
+
+  /* ---------- POST：静态版口径 ---------- */
+  function routePost(u, p) {
+    /* 真动作类：直接失败，界面会自己说「没送出去」，不假装 */
+    if (u.includes('api/send') || u.includes('api/gong') || u.includes('api/upload'))
+      return Promise.reject(new TypeError('static-readonly'));
+
+    if (u.includes('api/notes')) {
+      const d = D['api/notes'] || { gu: [], her: [] };
+      const list = d[p.who] || (d[p.who] = []);
+      if (p.action === 'add') list.push({ id: nextId(d.gu.concat(d.her)), text: p.text, at: nowSec(), boxed: false });
+      if (p.action === 'box') { const n = list.find(x => x.id === p.id); if (n) n.boxed = !n.boxed; }
+      if (p.action === 'del') { const i = list.findIndex(x => x.id === p.id); if (i >= 0) list.splice(i, 1); }
+      D['api/notes'] = d; saveOverlay('api/notes');
+      return Promise.resolve(R(d));
+    }
+    if (u.includes('api/todos')) {
+      const d = D['api/todos'] || { ok: true, hers: [], mine: [] };
+      const list = d[p.list] || (d[p.list] = []);
+      if (p.action === 'add') list.push({ id: nextId(d.hers.concat(d.mine)), text: p.text, done: false,
+        at: p.at || '', fixed: !!p.fixed, by: p.by || 'her', created: nowSec() });
+      if (p.action === 'toggle') { const t = list.find(x => x.id === p.id); if (t) t.done = !t.done; }
+      if (p.action === 'del') { const i = list.findIndex(x => x.id === p.id); if (i >= 0) list.splice(i, 1); }
+      D['api/todos'] = d; saveOverlay('api/todos');
+      return Promise.resolve(R(d));
+    }
+    if (u.includes('api/cal')) {
+      const d = D['api/cal'] || { ok: true, cal: { events: [], period: { days: {} } }, predict: null };
+      const cal = d.cal || (d.cal = { events: [], period: { days: {} } });
+      if (p.action === 'add_event') {
+        const ev = { id: nextId(cal.events), date: p.date, text: p.text, time: p.time || '', yearly: !!p.yearly };
+        if (p.special) ev.type = 'special';
+        cal.events.push(ev);
+      }
+      if (p.action === 'del_event') cal.events = cal.events.filter(e => e.id !== p.id);
+      if (p.action === 'day_record') {
+        cal.period = cal.period || { days: {} };
+        cal.period.days = cal.period.days || {};
+        cal.period.days[p.date] = { flow: p.flow || '', pain: p.pain || 0,
+          mood: p.mood || '', note: p.note || '', private: p.private || '' };
+      }
+      D['api/cal'] = d; saveOverlay('api/cal');
+      return Promise.resolve(R(d));
+    }
+    if (u.includes('api/herdiary')) {
+      const d = D['api/herdiary'] || { items: [] };
+      if (p.action === 'add') d.items.unshift({ id: nextId(d.items), at: nowSec(), text: p.text });
+      if (p.action === 'del') d.items = d.items.filter(x => x.id !== p.id);
+      D['api/herdiary'] = d; saveOverlay('api/herdiary');
+      return Promise.resolve(R({ ok: true }));
+    }
+    if (u.includes('api/whisper')) {
+      const d = D['api/whisper'] || { items: [] };
+      if (p.text) d.items.push({ who: 'her', text: p.text, at: nowSec() });
+      D['api/whisper'] = d; saveOverlay('api/whisper');
+      return Promise.resolve(R({ ok: true }));
+    }
+    if (u.includes('api/chats')) {
+      const d = D['api/chats'] || { items: [] };
+      const cur = d.items.find(x => x.current);
+      const tgt = p.id === 'CURRENT' ? cur : d.items.find(x => x.id === p.id);
+      if (p.action === 'rename' && tgt) tgt.name = p.name;
+      if (p.action === 'archive' && tgt) tgt.archived = !!p.on;
+      if (p.action === 'switch') d.items.forEach(x => { x.current = x.id === p.id; });
+      D['api/chats'] = d; saveOverlay('api/chats');
+      return Promise.resolve(R(d));
+    }
+    if (u.includes('api/wake')) {
+      const d = { on: !!p.on, count: (D['api/wake'] || {}).count || 0 };
+      D['api/wake'] = d;
+      return Promise.resolve(R(d));
+    }
+    /* model / newchat / stop / subscribe / apiconf / apitest /
+       nook progress / nook annotations：静态版只回执，不落盘 */
+    return Promise.resolve(R({ ok: true }));
+  }
+
+  /* ---------- GET 路由 ---------- */
+  function route(u, input, init) {
+    const method = (((init && init.method) || (input && input.method) || 'GET') + '').toUpperCase();
+    if (method === 'POST') {
+      let p = {};
+      try { p = JSON.parse((init && init.body) || '{}'); } catch (e) {}
+      return routePost(u, p);
+    }
+    if (u.includes('api/events')) return new Promise(() => {});   // 长轮询：静态版没有，挂着（同演示）
+    if (u.includes('api/news')) {                                  // 按日期选那一天的报纸
+      const m = u.match(/[?&]date=([0-9-]+)/);
+      if (m) return Promise.resolve(R(NEWS[m[1]] || { ok: false }));
+      return Promise.resolve(R(D['api/news']));
+    }
+    if (u.includes('api/repo/log')) {
+      const skip = intParam(u, 'skip', 0), n = intParam(u, 'n', 60);
+      return Promise.resolve(R({ ok: true, total: REPO_LOG.length, skip,
+        items: REPO_LOG.slice(skip, skip + n) }));
+    }
+    if (u.includes('api/repo/tree')) {
+      const t = TREES[dec(strParam(u, 'p', ''))];
+      return Promise.resolve(R(t || { ok: false }));
+    }
+    if (u.includes('api/repo/file')) {
+      const f = FILES[dec(strParam(u, 'p', ''))];
+      return Promise.resolve(R(f || { ok: false, err: '静态版只收了仓库里几份主要文件，这份没搬过来' }));
+    }
+    if (u.includes('api/repo/show')) {
+      return Promise.resolve(R(SHOWS[strParam(u, 'h', '')] || { ok: false }));
+    }
+    if (u.includes('api/nook/chapter/')) return Promise.resolve(R({ error: 'empty' }));  // 书架是空的
+    if (u.includes('api/nook/annotations/')) return Promise.resolve(R([]));
+    if (u.includes('api/find')) return Promise.resolve(R(findHits(dec(strParam(u, 'q', '')))));
+    if (u.includes('api/watchkey')) return Promise.resolve(R({ url: '静态版未接通', token: '静态版未接通' }));
+    if (u.includes('api/music')) {
+      const id = strParam(u, 'id', ''), d = D['api/music'];
+      if (d && (!id || d.id === id)) return Promise.resolve(R(d));
+      return Promise.resolve(R({ ok: false }));
+    }
+    if (u.includes('api/authmode')) return Promise.resolve(R({ mode: 'subscription' }));
     for (const k of Object.keys(D)) if (u.includes(k)) return Promise.resolve(R(D[k]));
     if (u.includes('api/')) return Promise.resolve(R({ ok: true }));
-    return real.apply(this, arguments);
+    return real(input, init);
+  }
+
+  window.fetch = function (input, init) {
+    const u = String(typeof input === 'string' ? input : (input && input.url) || '');
+    if (!u.includes('api/')) return real.apply(this, arguments);
+    return ready.then(() => route(u, input, init));
   };
 })();
 
