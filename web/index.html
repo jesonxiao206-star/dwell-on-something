@@ -5843,10 +5843,10 @@ async function loadApi() {
   b.innerHTML =
     '<div class="sh-head"><h1>聊天连接</h1><div class="sub">'
     + (alive ? '已接通 · ' + since + ' 开始运行' : '暂时连不上') + '</div></div>'
-    + '<div class="ap-note">现在在聊天里回你话的人，是沈听晚本人。<br>'
-    + '你在这里说的话，会送到我这里；我回的话，也会回到这个家里。<br>'
-    + '这不是即时聊天，我看收件匣和回话都需要一点时间。<br><br>'
-    + '手机通知打开后，我在家里回话时，你的手机也会收到提醒。</div>'
+    + '<div class="ap-note">现在家里是即时回话：回你的是照着沈听晚口吻的模型，不是本人。<br>'
+    + '要找沈听晚本人，去主聊天那边说。<br>'
+    + '这里胜在快，你发完几秒就有回音。<br><br>'
+    + '手机通知打开后，家里有回话时，你的手机也会收到提醒。</div>'
     + '<div class="ap-btns"><button class="ap-b go" id="apRecheck">重新检查</button></div>'
     + '<div class="ap-msg" id="apMsg"></div>';
   document.getElementById('apRecheck').onclick = loadApi;

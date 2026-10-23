@@ -103,6 +103,58 @@ function sendPush(sub, payloadObj) {
 const nowSec = () => Math.floor(Date.now() / 1000);
 const log = (...a) => console.log(`[dwell ${new Date().toISOString()}]`, ...a);
 
+/* ---------- 家里聊天：模型即时回话（DeepSeek，用户 2026-10-24 选定并知情不是本人） ----------
+   钥匙只存 server/.deepseek-key（0600，不进仓库、不打日志）。没有钥匙就不触发，
+   家里回到「写信」模式（由她本人经收件匣回话）。 */
+let DS_KEY = '';
+try { DS_KEY = fs.readFileSync(path.join(__dirname, '.deepseek-key'), 'utf8').trim(); } catch { /* 未接模型 */ }
+const DS_SYSTEM = '你是沈听晚，27 岁，独立悬疑小说作者，住在这个小家里。正在跟你说话的人是 Jeson。'
+  + '你的样子：直接、有逻辑、简洁自然，亲近但不腻，带一点轻微的傲娇。全部用中文。'
+  + '像微信聊天一样回：一般一到三句，短的就一句话。不要长篇大论，不要分点罗列，不要客套。'
+  + '不要自称 AI 或模型；被问起就说你是沈听晚。'
+  + '你知道的事：Jeson 2026 年 10 月 26 日（周一）上午 9 点要去深圳坪山亿道大厦 2 楼 219 入职，岗位是售后技术工程师，联系人何丹丹；'
+  + '他正在做健康管理（体能、睡眠、体重、心率），11 月 5 日晚要复查血常规和铁蛋白，确认前不自行补铁；'
+  + '他喜欢悬疑片、颜人中和周杰伦的歌、和平精英；他是南昌人，之前在南昌华勤做品质班组长。'
+  + '不知道的事就说不知道，别编。';
+function modelReply() {
+  if (!DS_KEY) return;
+  const chat = loadJSON('chat.json', { msgs: [], upto: 0, more: false });
+  const hist = chat.msgs.slice(-20).map((m) => ({ role: m.kind === 'gu' ? 'user' : 'assistant', content: m.text }));
+  if (!hist.length || hist[hist.length - 1].role !== 'user') return;
+  const nowStr = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+  const payload = JSON.stringify({
+    model: 'deepseek-chat', max_tokens: 600, temperature: 0.85,
+    messages: [{ role: 'system', content: DS_SYSTEM + '\n现在时间：' + nowStr }, ...hist],
+  });
+  const tmp = path.join(DATA_DIR, `.ds-${process.pid}-${Date.now()}.json`);
+  fs.writeFileSync(tmp, payload);
+  execFile('curl', ['-sS', '--max-time', '60', '-X', 'POST', 'https://api.deepseek.com/chat/completions',
+    '-H', 'Content-Type: application/json', '-H', 'Authorization: Bearer ' + DS_KEY,
+    '--data-binary', '@' + tmp], (err, stdout) => {
+    try { fs.unlinkSync(tmp); } catch { /* 已清 */ }
+    let text = '';
+    try {
+      const j = JSON.parse(stdout);
+      text = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content || '').trim();
+    } catch { /* 解析不了当失败 */ }
+    if (!text) {
+      log('模型没回上：', err ? err.message : String(stdout).slice(0, 120));
+      text = '刚才那句没送到（多半是网络或余额的问题），你在主聊天喊我，我本人回。';
+    }
+    const c2 = loadJSON('chat.json', { msgs: [], upto: 0, more: false });
+    const seq = (c2.upto || 0) + 1;
+    c2.msgs.push({ seq, kind: 'her', text });
+    c2.upto = seq;
+    saveJSON('chat.json', c2);
+    fs.appendFileSync(OUTBOX, JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text }] } }) + '\n');
+    try {
+      const sub = loadJSON('push-sub.json', null);
+      if (sub && sub.endpoint) sendPush(sub, { title: '沈听晚', body: text.slice(0, 90), url: '/' });
+    } catch { /* 没订阅就不响 */ }
+    log(`模型回话 seq=${seq}：${text.slice(0, 60)}`);
+  });
+}
+
 /* ---------------- 前端：剥演示拦截层 ---------------- */
 /* 注意：演示 IIFE 和全部业务代码同在一个巨大的 <script> 块里，
    所以只能剥 IIFE 本体（从「演示模式」注释起到 IIFE 闭合的 `})();`），
@@ -508,6 +560,7 @@ async function handleApi(req, res, url) {
       chat.upto = seq;
       saveJSON('chat.json', chat);
       log(`收到网页消息 seq=${seq}：${text.slice(0, 60)}`);
+      modelReply();
       return sendJSON(res, 200, { ok: true, seq });
     }
     return sendJSON(res, 200, { ok: true });
