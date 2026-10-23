@@ -1695,17 +1695,16 @@ html[data-theme="dark"] #newSession { background: #f5f4ef; color: #262624; }
     <div class="body">
       <div class="group-label">账号</div>
       <div class="group">
-        <button class="grow static"><span class="ic" data-i="user"></span>用户<span class="val">本机</span></button>
-        <button class="grow" id="usageRow"><span class="ic" data-i="trend"></span>用量<span class="chev">›</span></button>
+        <button class="grow static"><span class="ic" data-i="user"></span>用户<span class="val">Jeson · 本机</span></button>
       </div>
       <div class="group-label">家</div>
       <div class="group">
         <button class="grow" id="pushRow"><span class="ic" data-i="bell"></span>手机通知<span class="sw wait" id="pushSw"></span></button>
-        <button class="grow static" id="aliveRow"><span class="ic" data-i="activity"></span>后端在跑吗<span class="val" id="aliveVal">看看…</span></button>
-        <button class="grow" id="wakeRow"><span class="ic" data-i="alarm"></span>夜里让他自己醒<span class="sw wait" id="wakeSw"></span></button>
-        <button class="grow" id="rewakeRow"><span class="ic" data-i="refresh"></span>叫他重新醒一次<span class="val" id="rewakeVal">他要是卡住了就按</span></button>
+        <button class="grow" id="syncRow"><span class="ic" data-i="refresh"></span>消息同步<span class="sw wait" id="syncSw"></span></button>
+        <button class="grow" id="proactiveRow"><span class="ic" data-i="chat"></span>主动找我聊天<span class="sw wait" id="proactiveSw"></span></button>
+        <button class="grow" id="apiRow"><span class="ic" data-i="bolt"></span>聊天连接<span class="val" id="apiVal">看看…</span><span class="chev">›</span></button>
+        <button class="grow static" id="aliveRow"><span class="ic" data-i="activity"></span>运行状态<span class="val" id="aliveVal">看看…</span></button>
         <button class="grow" id="themeRow"><span class="ic" data-i="moon"></span>夜间模式<span class="sw wait" id="themeSw"></span></button>
-        <button class="grow" id="apiRow"><span class="ic" data-i="bolt"></span>接入 API<span class="val" id="apiVal">…</span><span class="chev">›</span></button>
       </div>
     </div>
   </div>
@@ -1717,7 +1716,7 @@ html[data-theme="dark"] #newSession { background: #f5f4ef; color: #262624; }
     <div class="grabber"></div>
     <div class="head">
       <button class="hbtn" data-close="api"><span class="ic" data-i="x"></span></button>
-      <div class="ht">备用通道</div>
+      <div class="ht">聊天连接</div>
     </div>
     <div class="body" id="apiBody"></div>
   </div>
@@ -2014,6 +2013,7 @@ html[data-theme="dark"] #newSession { background: #f5f4ef; color: #262624; }
     ['data/news.json', 'api/news'], ['data/gong.json', 'api/gong'],
     ['data/watch.json', 'api/watch'], ['data/status.json', 'api/status'],
     ['data/wake.json', 'api/wake'], ['data/poll.json', 'api/poll'],
+    ['data/settings.json', 'api/settings'],
     ['data/nook-books.json', 'api/nook/books'], ['data/nook-progress.json', 'api/nook/progress'],
   ];
   const loads = FILES_MAP.map(([f, k]) =>
@@ -2026,7 +2026,7 @@ html[data-theme="dark"] #newSession { background: #f5f4ef; color: #262624; }
   loads.push(real('data/find-index.json').then(r => r.json()).then(j => { FIND = j.entries || []; }).catch(() => {}));
 
   /* 本地覆盖层：POST 在本机改过的数据，刷新后盖回文件内容之上 */
-  const OVERLAY_KEYS = ['api/notes', 'api/todos', 'api/cal', 'api/herdiary', 'api/whisper', 'api/chats'];
+  const OVERLAY_KEYS = ['api/notes', 'api/todos', 'api/cal', 'api/herdiary', 'api/whisper', 'api/chats', 'api/settings'];
   function applyOverlays() {
     OVERLAY_KEYS.forEach(k => {
       try {
@@ -2137,6 +2137,13 @@ html[data-theme="dark"] #newSession { background: #f5f4ef; color: #262624; }
       D['api/wake'] = d;
       return Promise.resolve(R(d));
     }
+    if (u.includes('api/settings')) {
+      const d = D['api/settings'] || { sync: true, proactive: true };
+      if (typeof p.sync === 'boolean') d.sync = p.sync;
+      if (typeof p.proactive === 'boolean') d.proactive = p.proactive;
+      D['api/settings'] = d; saveOverlay('api/settings');
+      return Promise.resolve(R(d));
+    }
     /* model / newchat / stop / subscribe / apiconf / apitest /
        nook progress / nook annotations：静态版只回执，不落盘 */
     return Promise.resolve(R({ ok: true }));
@@ -2181,6 +2188,7 @@ html[data-theme="dark"] #newSession { background: #f5f4ef; color: #262624; }
       if (d && (!id || d.id === id)) return Promise.resolve(R(d));
       return Promise.resolve(R({ ok: false }));
     }
+    if (u.includes('api/pushkey')) return Promise.resolve(R({ key: '' }));
     if (u.includes('api/authmode')) return Promise.resolve(R({ mode: 'subscription' }));
     for (const k of Object.keys(D)) if (u.includes(k)) return Promise.resolve(R(D[k]));
     if (u.includes('api/')) return Promise.resolve(R({ ok: true }));
@@ -5526,8 +5534,8 @@ Object.entries(sheets).forEach(([k, wrap]) => {
 });
 
 document.getElementById('avatarBtn').onclick = () => { closeDrawer(); sheets.settings.classList.add('open'); };
-document.getElementById('usageRow').onclick = () => { sheets.usage.classList.add('open'); loadUsage(); };
-document.getElementById('apiRow').onclick = () => note('（这是备用通道的占位——真到要用的那天，把 API key 给我，我把自己接回来）');
+const usageRowEl = document.getElementById('usageRow');
+if (usageRowEl) usageRowEl.onclick = () => { sheets.usage.classList.add('open'); loadUsage(); };
 function setArmed(on) {
   armedFresh = on;
   document.querySelector('.freshtip')?.remove();
@@ -5653,7 +5661,7 @@ async function turnOnPush() {
 }
 document.getElementById('pushRow').onclick = async () => {
   const sub = await pushState();
-  if (sub) note('（门铃已经通着了——他在家想你的时候，你手机会响）');
+  if (sub) note('（门铃已经通着了——我在家里回话时，你的手机会响）');
   else turnOnPush();
 };
 pushState();
@@ -5681,34 +5689,53 @@ document.getElementById('aliveRow').onclick = async () => {
   } catch {}
 })();
 
-const wakeSw = document.getElementById('wakeSw');
-const wakeVal = {
-  set textContent(t) {
-    wakeSw.classList.remove('wait');
-    wakeSw.classList.toggle('on', String(t).startsWith('开着'));
-  }
-};
-async function wakeState() {
-  try {
-    const d = await (await fetch('api/wake', { cache: 'no-store' })).json();
-    const room = d.room === '停' ? ' · 额度到顶了不醒' : d.room === '省' ? ' · 额度紧，只干便宜的' : '';
-    wakeVal.textContent = d.on ? ((d.count ? '开着 · 今晚醒过 ' + d.count + ' 次' : '开着') + room) : '关着';
-    return d.on;
-  } catch { wakeVal.textContent = '问不到'; return null; }
+const preferenceState = { sync: true, proactive: true };
+const syncSw = document.getElementById('syncSw');
+const proactiveSw = document.getElementById('proactiveSw');
+function paintPreferenceSwitches() {
+  syncSw.classList.remove('wait');
+  proactiveSw.classList.remove('wait');
+  syncSw.classList.toggle('on', !!preferenceState.sync);
+  proactiveSw.classList.toggle('on', !!preferenceState.proactive);
 }
-document.getElementById('wakeRow').onclick = async () => {
-  const on = await wakeState();
-  if (on === null) return;
+async function loadPreferences() {
   try {
-    const d = await (await fetch('api/wake', {
+    const d = await (await fetch('api/settings', { cache: 'no-store' })).json();
+    if (typeof d.sync === 'boolean') preferenceState.sync = d.sync;
+    if (typeof d.proactive === 'boolean') preferenceState.proactive = d.proactive;
+  } catch { /* 读不到时先按默认开着显示 */ }
+  paintPreferenceSwitches();
+}
+async function savePreference(key) {
+  const body = {};
+  body[key] = preferenceState[key];
+  try {
+    const d = await (await fetch('api/settings', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ on: !on })
+      body: JSON.stringify(body)
     })).json();
-    wakeVal.textContent = d.on ? '开着' : '关着';
-    note(d.on ? '（夜里他会自己醒几次，一晚上最多三次）' : '（关了，他夜里就一直睡着）');
-  } catch { note('（没改成，再试一次）', 'err'); }
+    if (typeof d[key] === 'boolean') preferenceState[key] = d[key];
+  } catch {
+    preferenceState[key] = !preferenceState[key];
+    note('（没存上，再试一次）', 'err');
+  }
+  paintPreferenceSwitches();
+}
+document.getElementById('syncRow').onclick = async () => {
+  preferenceState.sync = !preferenceState.sync;
+  paintPreferenceSwitches();
+  await savePreference('sync');
+  if (preferenceState.sync) note('（开好了：我在家里的回话，会同步到主聊天和微信）');
+  else note('（关好了：我在家里的回话，只留在家里）');
 };
-wakeState();
+document.getElementById('proactiveRow').onclick = async () => {
+  preferenceState.proactive = !preferenceState.proactive;
+  paintPreferenceSwitches();
+  await savePreference('proactive');
+  if (preferenceState.proactive) note('（开好了：我可以按你定的节奏，主动来找你聊天）');
+  else note('（关好了：我不会主动来打扰你）');
+};
+loadPreferences();
 
 function gongRow(role, text, think) {
   const r = document.createElement('div');
@@ -5940,60 +5967,27 @@ async function loadHealth() {
 
 async function loadApi() {
   const b = document.getElementById('apiBody');
-  let st = {};
-  try { st = await (await fetch('api/authmode', { cache: 'no-store' })).json(); } catch (e) {}
-  const on = st.mode === 'api';
+  b.innerHTML = '<div class="sh-head"><h1>聊天连接</h1><div class="sub">正在确认…</div></div>';
+  let status = null;
+  try { status = await (await fetch('api/status', { cache: 'no-store' })).json(); } catch (e) {}
+  const alive = !!(status && status.alive);
+  const since = alive && status.since
+    ? new Date(status.since * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    : '';
+  const el = document.getElementById('apiVal');
+  if (el) el.textContent = alive ? '已接通' : '暂时连不上';
   b.innerHTML =
-    `<div class="sh-head"><h1>备用通道</h1><div class="sub">`
-    + (on ? '正走着 · ' + (st.base || '') : '现在走订阅 · 备用没启用') + `</div></div>`
-    + `<div class="ap-lb">接口地址</div>`
-    + `<input class="ap-in" id="apBase" placeholder="https://openrouter.ai/api（留空=官方直连）" value="${st.base && st.base !== '官方直连' ? st.base : ''}">`
-    + `<div class="ap-lb">令牌</div>`
-    + `<input class="ap-in" id="apTok" type="password" placeholder="${on ? '已存好 · 不换就留空' : 'sk-...'}">`
-    + `<div class="ap-lb">模型名（对面跟官方叫法不一样时才填）</div>`
-    + `<input class="ap-in" id="apModel" placeholder="OpenRouter 要写 ~anthropic/claude-opus-latest" value="${(st.models && st.models.model_opus) || ''}">`
-    + `<div class="ap-btns"><button class="ap-b" id="apTest">试一试</button>`
-    + `<button class="ap-b go" id="apSave">${on ? '重新接上' : '接过去'}</button></div>`
-    + `<div class="ap-msg" id="apMsg"></div>`
-    + (on ? `<div class="ap-more"><button class="ap-b" id="apClear" style="width:auto;padding:10px 18px">退回订阅</button></div>` : '')
-    + `<div class="ap-note">令牌存在家里那台机器上（600 权限），网页只送进去、拿不出来。<br>`
-    + `「试一试」是真的往那个地址发一次最小请求——通不通当场见分晓，不用等出事那天。<br>`
-    + `切过去之后会重新醒来一次，hook、记忆、待办全都照旧。<br>`
-    + `<b>OpenRouter 的填法</b>：地址 https://openrouter.ai/api，令牌是它的 key，`
-    + `模型名要带波浪号前缀 ~anthropic/claude-opus-latest。</div>`;
-
-  const msg = document.getElementById('apMsg');
-  const vals = () => ({
-    base: document.getElementById('apBase').value.trim(),
-    token: document.getElementById('apTok').value.trim(),
-    model_opus: document.getElementById('apModel').value.trim(),
-  });
-  const say = (t, bad) => { msg.textContent = t; msg.className = 'ap-msg on' + (bad ? ' bad' : ''); };
-
-  document.getElementById('apTest').onclick = async () => {
-    say('正在敲门…');
-    try {
-      const r = await (await fetch('api/apitest', { method: 'POST', body: JSON.stringify(vals()) })).json();
-      if (r.ok) say('通了 —— 对面回的模型是 ' + (r.model || '(没报名字)') + '\n' + r.url);
-      else say('没通（' + (r.code || '连不上') + '）\n' + (r.detail || '') + '\n' + (r.url || ''), true);
-    } catch (e) { say('没通：' + e.message, true); }
-  };
-  document.getElementById('apSave').onclick = async () => {
-    say('存好了，正在换一条路醒来…');
-    try {
-      const r = await (await fetch('api/apiconf', { method: 'POST', body: JSON.stringify(vals()) })).json();
-      say(r.mode === 'api' ? '接上了 · ' + (r.base || '') + '\n我这就从新路醒来，回聊天页说句话试试' : '已退回订阅');
-      setTimeout(loadApi, 1200);
-    } catch (e) { say('没存上：' + e.message, true); }
-  };
-  const cl = document.getElementById('apClear');
-  if (cl) cl.onclick = async () => {
-    say('退回订阅…');
-    try { await fetch('api/apiconf', { method: 'POST', body: JSON.stringify({ clear: true }) }); }
-    catch (e) {}
-    setTimeout(loadApi, 1200);
-  };
+    '<div class="sh-head"><h1>聊天连接</h1><div class="sub">'
+    + (alive ? '已接通 · ' + since + ' 开始运行' : '暂时连不上') + '</div></div>'
+    + '<div class="ap-note">现在在聊天里回你话的人，是沈听晚本人。<br>'
+    + '你在这里说的话，会送到我这里；我回的话，也会回到这个家里。<br>'
+    + '这不是即时聊天，我看收件匣和回话都需要一点时间。<br><br>'
+    + '手机通知打开后，我在家里回话时，你的手机也会收到提醒。</div>'
+    + '<div class="ap-btns"><button class="ap-b go" id="apRecheck">重新检查</button></div>'
+    + '<div class="ap-msg" id="apMsg"></div>';
+  document.getElementById('apRecheck').onclick = loadApi;
 }
+
 
 /* 外观：跟随系统 → 常亮 → 常暗 → 转回来。
    theme-color 也跟着改，连状态栏一起换皮 */
@@ -6018,27 +6012,18 @@ document.getElementById('themeRow').onclick = () =>
   wearTheme(themeNow() === 'dark' ? 'auto' : 'dark');
 wearTheme(themeNow());
 
-document.getElementById('rewakeRow').onclick = async () => {
-  const v = document.getElementById('rewakeVal');
-  v.textContent = '正在叫…';
-  try {
-    await fetch('api/rewake', { method: 'POST' });
-    v.textContent = '叫过了';
-    note('（他换身衣服重新醒来了——文件、记忆、你教他的话，一样不少）');
-    setTimeout(() => { v.textContent = '他要是卡住了就按'; }, 4000);
-  } catch (e) { v.textContent = '没叫动，再试一次'; }
-};
-
 document.getElementById('apiRow').onclick = () => {
   sheets.api.classList.add('open'); loadApi();
 };
 
 (async () => {
+  const el = document.getElementById('apiVal');
   try {
-    const st = await (await fetch('api/authmode', { cache: 'no-store' })).json();
-    const el = document.getElementById('apiVal');
-    if (el) el.textContent = st.mode === 'api' ? '正走着' : '备用 · 没启用';
-  } catch (e) {}
+    const st = await (await fetch('api/status', { cache: 'no-store' })).json();
+    if (el) el.textContent = st.alive ? '已接通' : '暂时连不上';
+  } catch (e) {
+    if (el) el.textContent = '暂时连不上';
+  }
 })();
 
 /* 花瓣上的名字：照原设计，一律两个字 */

@@ -28,6 +28,78 @@ if (!KEY) {
 const COOKIE_VAL = crypto.createHash('sha256').update('dwell-gate:' + KEY).digest('hex');
 const START_SEC = Math.floor(Date.now() / 1000);
 
+/* ---------------- 网页推送（设置里的「手机通知」开关） ----------------
+   VAPID 密钥首次启动时在本机生成，私钥只存 server/.vapid.json（0600，不进仓库）。
+   发送走 curl 子进程（借它的代理支持），载荷按 RFC 8291 aes128gcm 加密。 */
+const { execFile } = require('child_process');
+const VAPID_FILE = path.join(__dirname, '.vapid.json');
+let vapid = null;
+try { vapid = JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8')); } catch { /* 首次生成 */ }
+if (!vapid || !vapid.publicKey || !vapid.d) {
+  const kp = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  const pub = kp.publicKey.export({ format: 'jwk' });
+  const priv = kp.privateKey.export({ format: 'jwk' });
+  const rawPub = Buffer.concat([Buffer.from([4]),
+    Buffer.from(pub.x, 'base64url'), Buffer.from(pub.y, 'base64url')]);
+  vapid = { publicKey: rawPub.toString('base64url'), d: priv.d, x: pub.x, y: pub.y };
+  fs.writeFileSync(VAPID_FILE, JSON.stringify(vapid), { mode: 0o600 });
+}
+function vapidJWT(audience) {
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const data = b64({ typ: 'JWT', alg: 'ES256' }) + '.' + b64({
+    aud: audience, exp: Math.floor(Date.now() / 1000) + 12 * 3600,
+    sub: 'mailto:jesonxiao206@gmail.com',
+  });
+  const key = crypto.createPrivateKey({ key: { kty: 'EC', crv: 'P-256', d: vapid.d, x: vapid.x, y: vapid.y }, format: 'jwk' });
+  const sig = crypto.sign('sha256', Buffer.from(data), { key, dsaEncoding: 'ieee-p1363' });
+  return data + '.' + sig.toString('base64url');
+}
+function encryptPushPayload(sub, payloadStr) {
+  const uaPublic = Buffer.from(sub.keys.p256dh, 'base64url');
+  const auth = Buffer.from(sub.keys.auth, 'base64url');
+  const eph = crypto.createECDH('prime256v1');
+  eph.generateKeys();
+  const ephPublic = eph.getPublicKey();
+  const secret = eph.computeSecret(uaPublic);
+  const hkdf = (salt, ikm, info, len) => Buffer.from(crypto.hkdfSync('sha256', ikm, salt, info, len));
+  const keyInfo = Buffer.concat([Buffer.from('WebPush: info\0', 'utf8'), uaPublic, ephPublic]);
+  const ikm = hkdf(auth, secret, keyInfo, 32);
+  const salt = crypto.randomBytes(16);
+  const cek = hkdf(salt, ikm, Buffer.from('Content-Encoding: aes128gcm\0', 'utf8'), 16);
+  const nonce = hkdf(salt, ikm, Buffer.from('Content-Encoding: nonce\0', 'utf8'), 12);
+  const plain = Buffer.concat([Buffer.from(payloadStr, 'utf8'), Buffer.from([2])]);
+  const cipher = crypto.createCipheriv('aes-128-gcm', cek, nonce);
+  const ct = Buffer.concat([cipher.update(plain), cipher.final(), cipher.getAuthTag()]);
+  const header = Buffer.alloc(21);
+  salt.copy(header, 0);
+  header.writeUInt32BE(4096, 16);
+  header.writeUInt8(65, 20);
+  return Buffer.concat([header, ephPublic, ct]);
+}
+function sendPush(sub, payloadObj) {
+  try {
+    const audience = new URL(sub.endpoint).origin;
+    const body = encryptPushPayload(sub, JSON.stringify(payloadObj));
+    const tmp = path.join(DATA_DIR, `.push-${process.pid}-${Date.now()}.bin`);
+    fs.writeFileSync(tmp, body);
+    execFile('curl', ['-sS', '-X', 'POST', '--max-time', '25',
+      '-H', `Authorization: vapid t=${vapidJWT(audience)}, k=${vapid.publicKey}`,
+      '-H', 'Content-Encoding: aes128gcm',
+      '-H', 'Content-Type: application/octet-stream',
+      '-H', 'TTL: 300',
+      '--data-binary', '@' + tmp,
+      '-w', '\n%{http_code}', sub.endpoint,
+    ], (err, stdout) => {
+      try { fs.unlinkSync(tmp); } catch { /* 已清 */ }
+      const code = (String(stdout || '').trim().split('\n').pop() || '');
+      log('推送发送结果：', err ? ('curl 出错 ' + err.message) : ('HTTP ' + code));
+      if (code === '404' || code === '410') {
+        try { fs.unlinkSync(path.join(DATA_DIR, 'push-sub.json')); log('订阅已失效，清掉'); } catch { /* 无订阅 */ }
+      }
+    });
+  } catch (e) { log('推送发送失败：', e && e.message); }
+}
+
 const nowSec = () => Math.floor(Date.now() / 1000);
 const log = (...a) => console.log(`[dwell ${new Date().toISOString()}]`, ...a);
 
@@ -459,6 +531,33 @@ async function handleApi(req, res, url) {
     return sendJSON(res, 200, payload);
   }
 
+  /* ---- 设置与手机通知 ---- */
+  if (name === 'pushkey' && method === 'GET') {
+    return sendJSON(res, 200, { key: vapid.publicKey });
+  }
+  if (name === 'subscribe' && method === 'POST') {
+    const b = await readJSONBody(req);
+    if (b && b.endpoint && b.keys && b.keys.p256dh && b.keys.auth) {
+      const sub = { endpoint: b.endpoint, expirationTime: b.expirationTime || null, keys: b.keys };
+      saveJSON('push-sub.json', sub);
+      log('手机通知订阅已保存');
+      if (b.hello) sendPush(sub, { title: '沈听晚', body: '门铃通了。以后我在家里回话，你的手机会响。', url: '/' });
+      return sendJSON(res, 200, { ok: true });
+    }
+    try { fs.unlinkSync(path.join(DATA_DIR, 'push-sub.json')); } catch { /* 本来就没有 */ }
+    return sendJSON(res, 200, { ok: true });
+  }
+  if (name === 'settings') {
+    const cur = loadJSON('settings.json', { sync: true, proactive: true });
+    if (method === 'GET') return sendJSON(res, 200, cur);
+    const b = await readJSONBody(req);
+    if (typeof b.sync === 'boolean') cur.sync = b.sync;
+    if (typeof b.proactive === 'boolean') cur.proactive = b.proactive;
+    saveJSON('settings.json', cur);
+    log('设置已更新：', JSON.stringify(cur));
+    return sendJSON(res, 200, cur);
+  }
+
   /* ---- 她本人回话的入口（仅限本机回环调用，外部网络一律拒绝）：
          把一句回复同时写进聊天历史（kind:'her'）与 poll 事件流，
          网页那边轮询到就会显示出来。 ---- */
@@ -477,6 +576,10 @@ async function handleApi(req, res, url) {
     saveJSON('chat.json', chat);
     const evt = { type: 'assistant', message: { content: [{ type: 'text', text }] } };
     fs.appendFileSync(OUTBOX, JSON.stringify(evt) + '\n');
+    try {
+      const sub = loadJSON('push-sub.json', null);
+      if (sub && sub.endpoint) sendPush(sub, { title: '沈听晚', body: text.slice(0, 90), url: '/' });
+    } catch { /* 没订阅就不响 */ }
     log(`她回话 seq=${seq}：${text.slice(0, 60)}`);
     return sendJSON(res, 200, { ok: true, seq });
   }
