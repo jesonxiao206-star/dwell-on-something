@@ -11,6 +11,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 const ROOT = path.resolve(__dirname, '..');
 const WEB_DIR = path.join(ROOT, 'web');
@@ -260,10 +261,25 @@ input:focus{border-color:#c96442}button{width:100%;margin-top:12px;padding:11px;
 }
 
 /* ---------------- HTTP 工具 ---------------- */
+/* 隧道延迟高：大响应一律 gzip（主页面 271KB、JSON 数据），能省一大截传输时间。
+   主处理器会把请求的 Accept-Encoding 挂在 res._ae 上。 */
+function gzippable(ct) {
+  return /^(text\/|application\/(json|javascript|manifest\+json))/.test(ct || '');
+}
+function sendBuf(req, res, code, headers, body) {
+  let buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body));
+  const ct = headers['Content-Type'] || '';
+  const ae = (req && req.headers && req.headers['accept-encoding']) || res._ae || '';
+  if (buf.length > 1024 && gzippable(ct) && /\bgzip\b/.test(ae)) {
+    buf = zlib.gzipSync(buf, { level: 6 });
+    headers = Object.assign({}, headers, { 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding' });
+  }
+  res.writeHead(code, headers);
+  res.end(buf);
+}
 function sendJSON(res, code, obj) {
   const body = JSON.stringify(obj);
-  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-  res.end(body);
+  sendBuf(null, res, code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }, body);
 }
 function readBody(req, limit = 2 * 1024 * 1024) {
   return new Promise((resolve) => {
@@ -482,6 +498,7 @@ async function handleApi(req, res, url) {
 /* ---------------- 主服务 ---------------- */
 const server = http.createServer(async (req, res) => {
   try {
+    res._ae = req.headers['accept-encoding'] || '';
     const url = new URL(req.url, 'http://localhost');
 
     /* 口令提交 */
@@ -511,8 +528,7 @@ const server = http.createServer(async (req, res) => {
 
     /* 首页：内存里剥好拦截层的前端 */
     if (url.pathname === '/' || url.pathname === '/index.html') {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-      return res.end(PAGE);
+      return sendBuf(req, res, 200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }, PAGE);
     }
 
     if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
@@ -522,8 +538,26 @@ const server = http.createServer(async (req, res) => {
     const file = path.resolve(WEB_DIR, rel);
     if (file.startsWith(WEB_DIR + path.sep) && fs.existsSync(file) && fs.statSync(file).isFile()) {
       const ext = path.extname(file).toLowerCase();
-      res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
-      return res.end(fs.readFileSync(file));
+      return sendBuf(req, res, 200, { 'Content-Type': MIME[ext] || 'application/octet-stream' }, fs.readFileSync(file));
+    }
+    /* 装饰资源兜底：icons/manifest/sw/pet 在仓库里还没补齐。隧道里每个 404 都要
+       白跑一个高延迟来回，这里直接给极小占位件并长缓存，省掉这些空转。 */
+    const p = url.pathname;
+    const PLACE_CACHE = { 'Cache-Control': 'public, max-age=86400' };
+    if (p === '/manifest.json') {
+      return sendBuf(req, res, 200, Object.assign({ 'Content-Type': 'application/manifest+json' }, PLACE_CACHE),
+        JSON.stringify({ name: 'dwell', short_name: 'dwell', display: 'standalone', start_url: '.', icons: [] }));
+    }
+    if (p === '/sw.js') {
+      return sendBuf(req, res, 200, Object.assign({ 'Content-Type': 'application/javascript' }, PLACE_CACHE), '// dwell placeholder\n');
+    }
+    if (/^\/(icons|pet)\//.test(p) || p === '/favicon.ico') {
+      if (p.endsWith('.svg')) {
+        return sendBuf(req, res, 200, Object.assign({ 'Content-Type': 'image/svg+xml' }, PLACE_CACHE),
+          '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><circle cx="32" cy="32" r="28" fill="#c96442"/></svg>');
+      }
+      const png1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+      return sendBuf(req, res, 200, Object.assign({ 'Content-Type': 'image/png' }, PLACE_CACHE), png1);
     }
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     return res.end('not found');
