@@ -1,0 +1,67 @@
+{
+ "connected": true,
+ "freshness": "stale",
+ "age_seconds": 3450,
+ "device": "iPhone · Apple Health",
+ "metrics": {
+  "steps": {
+   "value": 2712,
+   "unit": "步",
+   "freshness": "stale",
+   "age_seconds": 3450
+  },
+  "resting_heart_rate": {
+   "value": 92,
+   "unit": "次/分",
+   "freshness": "stale",
+   "age_seconds": 566850
+  },
+  "sleep_hours": {
+   "value": 7.1,
+   "unit": "小时",
+   "freshness": "stale",
+   "age_seconds": 1012350
+  },
+  "sleep_deep": {
+   "value": 2.63,
+   "unit": "小时",
+   "freshness": "stale",
+   "age_seconds": 1012350
+  },
+  "sleep_rem": {
+   "value": 1.6,
+   "unit": "小时",
+   "freshness": "stale",
+   "age_seconds": 1012350
+  }
+ },
+ "history": {
+  "2026-10-12": {
+   "sleep_hours": 7.1,
+   "sleep_deep": 2.63,
+   "sleep_rem": 1.6
+  },
+  "2026-10-17": {
+   "steps": 2240,
+   "resting_heart_rate": 92
+  },
+  "2026-10-18": {
+   "steps": 2782
+  },
+  "2026-10-19": {
+   "steps": 708
+  },
+  "2026-10-20": {
+   "steps": 158
+  },
+  "2026-10-21": {
+   "steps": 179
+  },
+  "2026-10-22": {
+   "steps": 4031
+  },
+  "2026-10-23": {
+   "steps": 2712
+  }
+ }
+}

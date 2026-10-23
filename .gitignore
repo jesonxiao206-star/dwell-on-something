@@ -1,0 +1,6 @@
+# dwell 后端口令与运行产物，不进仓库
+server/.key
+server/server.log
+server/server.pid
+server/watchdog.log
+server/nohup.out

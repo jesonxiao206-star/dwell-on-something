@@ -1,0 +1,42 @@
+{
+ "ok": true,
+ "hers": [
+  {
+   "id": 1,
+   "text": "周一（10月26日）09:00 亿道入职报到——深圳坪山亿道大厦 2 楼 219，找何丹丹，带体检报告",
+   "done": false,
+   "at": "",
+   "fixed": false,
+   "by": "gu",
+   "created": 1792775700
+  },
+  {
+   "id": 2,
+   "text": "确认南昌华勤的离职证明",
+   "done": false,
+   "at": "",
+   "fixed": false,
+   "by": "gu",
+   "created": 1792775700
+  },
+  {
+   "id": 3,
+   "text": "11月5日 20:00 体检复查：血常规 + 铁蛋白（确认前不要自行补铁）",
+   "done": false,
+   "at": "",
+   "fixed": false,
+   "by": "gu",
+   "created": 1792775700
+  },
+  {
+   "id": 4,
+   "text": "租房看房：竹坑一带 700–900 元单间（日期待定）",
+   "done": false,
+   "at": "",
+   "fixed": false,
+   "by": "gu",
+   "created": 1792775700
+  }
+ ],
+ "mine": []
+}
